@@ -1,0 +1,14 @@
+Assignment improvements
+
+Part A:
+-PID application
+-Way to autocorrect motion type
+
+Part B:
+-Cleaner CodeS
+-did it work?
+
+Part C:
+Cornerstone Locator
+Cleaner Morophology
+

@@ -1,0 +1,338 @@
+-----------------------------------
+#Libraries
+import cv2 # OpenCV library
+import numpy as np # Numpy library for scientific computing
+import matplotlib.pyplot as plt # Matplotlib library for plottin
+
+#Global Variables
+Fframe=True
+centers=[]
+direction = ""
+framecount=0
+(dX,dY)=(0,0)
+Map="MapFound.txt"
+
+#Threshold Limits
+lower = np.array([35, 16, 72])
+upper = np.array([113, 173, 255])
+
+#Load Videos to Read/Write
+vid = cv2.VideoCapture('test2.mkv')
+out = cv2.VideoWriter('Final.mp4',cv2.VideoWriter_fourcc('M','P','4','2'), 10, (int(vid.get(3)),int(vid.get(3))))###FIX###
+
+while (vid.isOpened()):
+    #Save Video Frames
+    ret, frame = vid.read()
+
+    #Break at end of video
+    if frame is None:
+        break
+    
+    #Convert to HSV
+    frame_hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    #Create Robot Mask
+    mask = cv2.inRange(frame_hsv, lower, upper)
+
+    #Morphology
+    k=np.ones((3,3),np.uint8)
+    mask=cv2.erode(mask,k,iterations=1)
+    mask=cv2.dilate(mask,k,iterations=20)
+    if Fframe:
+        first=cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2RGB)
+        Fframe=False
+    #Contours
+    edges = cv2.Canny(mask, threshold1 = 50, threshold2 = 100, apertureSize = 3) #Canny edge finder for Circle
+    _, contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #Create Contour Shape based on Canny edges
+
+    #Only take biggest contour
+    c = max(contours, key=cv2.contourArea)
+
+    #Centre Location
+    M=cv2.moments(c)
+    cnt=(int(M['m10']/M['m00']),int(M['m01']/M['m00']))
+    centers=[cnt]+centers
+       
+    #Draw Locator
+    cv2.circle(frame, cnt, 50, (255,255,0), 3)
+    #cv2.circle(frame, cnt, 5, (0, 255, 255), -1)************************************
+
+    #Path
+    for i in np.arange(1, len(centers)):
+        #cv2.circle(frame, centers[i], 5, (0, 0, 255), -1)
+        cv2.line(frame, centers[i - 1], centers[i], (0, 255, 255), 15) 
+
+        '''
+        #Direction###FIX###
+        if framecount >= 10 and i == 1 and centers[-10] is not None:
+            dX = centers[-10][0] - centers[i][0]
+            dY = centers[-10][1] - centers[i][1]
+            (dirX, dirY) = ("", "")
+            if np.abs(dX) > 20:
+                dirX = "Direction: East" if np.sign(dX) == 1 else "Direction: West"
+            if np.abs(dY) > 20:
+                dirY = "Direction: North" if np.sign(dY) == 1 else "Direction: South"
+
+            direction = dirX if dirX != "" else dirY
+
+            
+                
+    cv2.putText(frame, direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,0.65, (0, 255, 0), 2)
+    cv2.putText(frame, "dx: {}, dy: {}".format(dX, dY),(10, 70), cv2.FONT_HERSHEY_SIMPLEX,0.35, (0, 255, 0), 2)###FIX###
+
+    framecount += 1	
+    '''	
+    #Video
+    img=cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2RGB)
+    img_hsv=cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2HSV)
+    out.write(frame)
+    cv2.imshow('Video',frame)
+    #cv2.imshow('HSV Video',mask)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+out.release()
+vid.release()
+cv2.destroyAllWindows()
+
+#Create Path
+plt.figure(figsize = (18, 10))
+plt.imshow(first)
+
+#Check ROI'S (Mix of Part B and C)
+-----------------------------------
+#Region of Interests
+CR=[img_hsv[0:540, 0:960],img_hsv[540:1080, 0:960],img_hsv[0:540, 960:1920],img_hsv[540:1080, 960:1920] ]
+
+#Thresholding Ranges
+lower2 = np.array([145, 200, 70])
+upper2 = np.array([150, 255, 255])
+
+#Analysis Vectors
+m=[]
+C=[]
+e=[]
+
+#Dilation Kernel
+k=np.ones((3,3),np.uint8)
+
+#Region Check
+for i in range(len(CR)):
+    m.append(cv2.inRange(CR[i], lower, upper)) #Threshold Mask
+    edges = cv2.Canny(m[i], threshold1 = 50, threshold2 = 100, apertureSize = 3) #Canny edge finder for Cornerstones
+    _, contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #Create Contour Shape based on Canny edges
+    #Clean Noise Filled Contours
+    while len(contours)!=1:
+            m[i]=cv2.dilate(m[i],k,iterations=1) #Dilate 
+            edges = cv2.Canny(m[i], threshold1 = 50, threshold2 = 100, apertureSize = 3) #Re-edge
+            _, contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #Re-contour
+
+    #Center Finder       
+    centers = [None]*len(contours)
+    for j, c in enumerate(contours):
+        centers[j], _ = cv2.minEnclosingCircle(c)
+        C.append([int(centers[0][0]),(int(centers[0][1]))])
+
+ #Rescale points for whole map
+C[1][1] = C[1][1]+540    
+C[2][0] = C[2][0]+960  
+C[3][1] = C[3][1]+540  
+C[3][0] = C[3][0]+960 
+
+k=img.copy()
+
+#Points
+pts1 = np.float32(C) #Cornerstone Centers 
+pts2 = np.float32([[0,0],[0,500],[900,0],[900,500]]) #New Position
+
+#Transform
+H = cv2.getPerspectiveTransform(pts1,pts2) # homography matrix
+dst = cv2.warpPerspective(k, H, (900,500)) #New Image
+dst2=cv2.warpPerspective(first, H, (900,500))
+#Plot Image
+plt.figure(figsize = (18, 10)) #Plot Figure Size
+plt.imshow(k) #holds image to show
+plt.show()
+-----------------------------------
+
+#Path Maker
+dst3=cv2.cvtColor(dst,cv2.COLOR_RGB2HSV)
+l = np.array([29, 254, 254])
+u = np.array([30, 255, 255])
+m = cv2.inRange(dst3, l, u)
+
+
+path=np.ones((5,9))*50 #Map Array
+count=0 #Steps from Center
+path[2][4]=0 #Initialise center as 0
+Cur=[2,4] #Starting Postion
+Pos=[Cur[0]*100+55,Cur[1]*100+55] #Corresponding Grid Position (e.g. 255,455)
+Last=[2,4] #Previous Position
+Change=True #Keep Updating until end
+
+print("Start")
+print(Cur)
+print(Last)
+print(count)
+
+while Change:
+    if 255 in m[Pos[0]-10:Pos[0]+10,Pos[1]+45] and Last[1]!=(Cur[1]+1): #if Left next position of current has trail AND position is not equal to last
+        #Right
+        Last=[Cur[0],Cur[1]]
+        count=count+1
+        Cur[1]=Cur[1]+1
+        Pos[1]=Pos[1]+100
+        path[Cur[0]][Cur[1]]=count
+        print("Right")
+        print(Cur)
+        print(Last)
+        print(count)
+        print("-------------------------------")
+        
+    elif 255 in m[Pos[0]-10:Pos[0]+10,Pos[1]-55] and Last[1]!=(Cur[1]-1):
+        #Left
+        Last=[Cur[0],Cur[1]]
+        count=count+1
+        Cur[1]=Cur[1]-1
+        Pos[1]=Pos[1]-100
+        path[Cur[0]][Cur[1]]=count
+        print("Left")
+        print(Cur)
+        print(Last)
+        print(count)
+        print("-------------------------------")
+        
+    elif (Pos[0]+45)<500 and 255 in m[Pos[0]+45,Pos[1]-10:Pos[1]+10] and Last[0]!=(Cur[0]+1):
+        #Down
+        Last=[Cur[0],Cur[1]]
+        count=count+1
+        Cur[0]=Cur[0]+1
+        Pos[0]=Pos[0]+100
+        path[Cur[0]][Cur[1]]=count
+        print("Down")
+        print(Cur)
+        print(Last)
+        print(count)
+        print("-------------------------------")
+        
+    elif (Pos[0]-55)>0 and 255 in m[Pos[0]-55,Pos[1]-10:Pos[1]+10,] and Last[0]!=(Cur[0]-1):
+        #Up
+        Last=[Cur[0],Cur[1]]
+        count=count+1
+        Cur[0]=Cur[0]-1
+        Pos[0]=Pos[0]-100
+        path[Cur[0]][Cur[1]]=count
+        print("Up")
+        print(Cur)
+        print(Last)
+        print(count)
+        print("-------------------------------")
+       
+    else:
+        Change=False
+path=path.astype(int)
+print(path)
+-----------------------------------
+#Used Transformed Image
+dst_hsv=cv2.cvtColor(dst2, cv2.COLOR_RGB2HSV)
+k=np.ones((3,3),np.uint8)
+#Threshold Mask (Lower/Upper HSV Values based on Inner Wall Colour Range)
+lower2 = np.array([17, 0, 221])
+upper2 = np.array([19, 255, 255])
+mask2 = cv2.inRange(dst_hsv, lower2, upper2)
+
+#Morphological Clean
+mask2=cv2.morphologyEx(mask2,cv2.MORPH_CLOSE,k) 
+
+#Overlaying Masks
+mask2inv=cv2.bitwise_not(mask2)
+maskC=cv2.cvtColor(mask2, cv2.COLOR_GRAY2RGB)
+maskC[np.where((maskC==[255,255,255]).all(axis=2))]=[160,75,255]
+
+#Overlay
+img1_bg = cv2.bitwise_and(dst2,dst2,mask = mask2inv)
+img2_fg = cv2.bitwise_and(maskC,maskC,mask = mask2)
+out_img = cv2.add(img1_bg,img2_fg)
+
+#Plot Image
+plt.figure(figsize = (18, 10)) #Plot Figure Size
+plt.imshow(out_img)
+plt.show()
+-----------------------------------
+#Mapout
+Map="MapFound.txt"
+r=list(range(0,5))
+c=list(range(0,9))
+row=list(range(0,401,100))
+col=list(range(0,801,100))
+'''
+cx=50
+cy=50
+Dir="v" 
+'''
+#Wall check Tolerance
+check=list(range(70,131))
+
+#Main Mask
+outhsv=cv2.cvtColor(out_img,cv2.COLOR_RGB2HSV) 
+lower3 = np.array([134, 10, 180])
+upper3 = np.array([138, 255, 255])
+mask4 = cv2.inRange(outhsv, lower3, upper3)
+
+#Clean Map and Write
+f = open(Map, "w")
+f.write(" --- --- --- --- --- --- --- --- --- ") #Top Wall
+
+for i in range(len(row)):
+    f.write("\n")
+    f.write("|") #Leftmost Wall
+
+    for j in range(len(col)):
+        #Step Position
+        if path[r[i]][c[j]]!=50:
+            f.write(" ")
+            f.write(str(path[r[i]][c[j]]))
+            if path[r[i]][c[j]]<10:
+                f.write(" ")
+        else:
+            f.write("   ")
+            
+            #Vertical Walls
+        if col[j]==800:
+            f.write("|") #Rightmost Wall
+        else:
+            for k in check:
+                if mask4[row[i]+50,col[j]+k]==255:
+                    d=True
+                    break
+                else:
+                    d=False
+            if d == True:
+                f.write("|") #Wall Found
+            else:
+                f.write(" ") #No Wall fOUND
+
+    f.write("\n")
+
+    if row[i]==400:
+        break
+    #Horizontal Walls
+    f.write(" ") #Left wall Spacing
+    for j in col:
+        for k in check:
+            if mask4[row[i]+k,j+50]==255:
+                d=True
+                break
+            else:
+                d=False
+        if d == True:
+            f.write("--- ") #Wall Found
+        else:
+            f.write("    ") #No Wall Found
+f.write(" --- --- --- --- --- --- --- --- --- \n")#Bottom Wall
+f.close()
+
+#Show Map
+f = open(Map, "r")
+print(f.read())
+

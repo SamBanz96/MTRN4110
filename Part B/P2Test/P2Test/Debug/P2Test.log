@@ -1,0 +1,9 @@
+﻿  Source.cpp
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(460,22): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(463,23): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(484,20): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(495,21): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(497,22): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(505,20): warning C4018: '<': signed/unsigned mismatch
+D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\P2Test\Source.cpp(507,21): warning C4018: '<': signed/unsigned mismatch
+  P2Test.vcxproj -> D:\0.University\4.2\MTRN4110\Assignment\Part B\P2Test\Debug\P2Test.exe
