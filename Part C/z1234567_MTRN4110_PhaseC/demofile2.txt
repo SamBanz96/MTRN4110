@@ -1,0 +1,129 @@
+
+#Extra Code
+#Bounding Rectangle/Enclosing Circle
+contours_poly = [None]*len(contours)
+boundRect = [None]*len(contours)
+centers = [None]*len(contours)
+radius = [None]*len(contours)
+for i, c in enumerate(contours):
+    contours_poly[i] = cv2.approxPolyDP(c, 3, True)
+    boundRect[i] = cv2.boundingRect(contours_poly[i])
+    centers[i], radius[i] = cv2.minEnclosingCircle(contours_poly[i])
+
+drawing = np.zeros((edges.shape[0], edges.shape[1], 3), dtype=np.uint8)
+for i in range(len(contours)):
+        color = (255,0,0)
+        cv2.drawContours(drawing, contours_poly, i, color)
+       # cv2.rectangle(drawing, (int(boundRect[i][0]), int(boundRect[i][1])), \
+        #  (int(boundRect[i][0]+boundRect[i][2]), int(boundRect[i][1]+boundRect[i][3])), color, 2)
+        cv2.circle(drawing, (int(centers[i][0]), int(centers[i][1])), int(20), color, 2)
+
+#Save Region of Interests for Cornerstone Search
+C1 = img_hsv[0:375, 0:338]
+C2 = img_hsv[375:750, 0:338]
+C3 = img_hsv[0:375, 1012:1350]
+C4 = img_hsv[375:750, 1012:1350] 
+
+fig, ax1 = plt.subplots(figsize = (18, 10),nrows=2, ncols = 2)
+ax1[0,0].imshow(C1)
+ax1[1,0].imshow(C2)
+ax1[0,1].imshow(C3)
+ax1[1,1].imshow(C4)
+
+#Morphology
+clse = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, kernel)
+opn = cv2.morphologyEx(clse, cv2.MORPH_OPEN, kernel)
+mask2inv=cv2.bitwise_not(opn)
+
+#Hough
+dst_gray=cv2.cvtColor(dst, cv2.COLOR_RGB2GRAY)
+output=out_img
+
+circles=cv2.HoughCircles(dst_gray, cv2.HOUGH_GRADIENT, 1.2, 100)
+
+circles = np.round(circles[0, :]).astype("int")
+
+
+for (x, y, r) in circles:
+		# draw the circle in the output image, then draw a rectangle
+		# corresponding to the center of the circle
+		cv2.circle(output, (x, y), r, (0, 255, 0), 4)
+		cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+print(circles)
+#Threshold Mask (Lower/Upper HSV Values based on Inner Wall Colour Range)
+'''
+lower2 = np.array([21, 0, 0])
+upper2 = np.array([118, 118, 255])
+mask3 = cv2.inRange(dst_hsv, lower2, upper2)
+'''
+'''
+Robot Perspective Transform
+pts4 = np.float32([[125,250],[0,125],[125,0],[250,125]])
+H2 = cv2.getPerspectiveTransform(markerCorners[0],pts4) # homography matrix
+#print(H)
+dst2 = cv2.warpPerspective(ROI_rgb, H2, (700,700)) #New Image
+markerCorners2, markerIds, rejectedCandidates = cv2.aruco.detectMarkers(dst2, dictionary, parameters=parameters)
+print(markerCorners2[0][0])
+'''
+'''
+#Test to see walls
+f = open("demofile2.txt", "w")
+f.write(" --- --- --- --- --- --- --- --- --- \n")#Top Wall
+
+for i in row:
+    f.write("|\n")
+
+    for j in col:
+        if j == 900:
+            continue
+        d=mask4[i-50,j]
+        print("Pos[",i-50,",",j,"]:",d)
+    print("xxxxxxxxxxxx\n")
+f.write(" --- --- --- --- --- --- --- --- --- \n")#Bottom Wall
+'''
+#Cornerstone Locator 
+#*******************ROI Segments*******************
+
+#Specified Thresholding (Lower/Upper HSV Values based on Cornerstone Colour Range)
+lower = np.array([145, 230, 0])
+upper = np.array([150, 255, 255])
+mask = cv2.inRange(img_hsv, lower, upper)
+
+#Contours
+edges = cv2.Canny(mask, threshold1 = 50, threshold2 = 100, apertureSize = 3) #Canny edge finder for Cornerstones
+_, contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #Create Contour Shape based on Canny edges
+img_corner = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) #Define Contours on an image
+
+#Identifier Centroid and Radius
+centers = [None]*len(contours) 
+radius = [None]*len(contours)
+
+#Draw
+font=cv2.FONT_ITALIC
+for i, c in enumerate(contours):
+    centers[i], _ = cv2.minEnclosingCircle(c) 
+    cv2.circle(img_corner, (int(centers[i][0]), int(centers[i][1])), int(20), (0,255,144), 3)
+    #cv2.putText(img_corner,".", (int(centers[i][0]), int(centers[i][1])), font, 1, (0,255,144), 1, cv2.LINE_AA) **Figure way to define circle centre
+print(centers)
+#Plot Image
+plt.figure(figsize = (18, 10)) #Plot Figure Size
+plt.imshow(img_corner) #holds image to show
+plt.show() #shows image
+
+a=img_hsv[0:375, 1012:1350]
+lower = np.array([145, 200, 70])
+upper = np.array([150, 255, 255])
+k=np.ones((3,3),np.uint8)
+b=cv2.inRange(a, lower, upper)
+edges = cv2.Canny(b, threshold1 = 50, threshold2 = 100, apertureSize = 3)
+_, contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+print(len(contours))
+
+'''
+fig, ax1 = plt.subplots(figsize = (27, 15),nrows=2, ncols = 2)
+ax1[0,0].imshow(e[0])
+ax1[1,0].imshow(e[1])
+ax1[0,1].imshow(e[2])
+ax1[1,1].imshow(e[3])
+plt.show() #shows image
+'''

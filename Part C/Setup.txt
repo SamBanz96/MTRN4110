@@ -1,0 +1,9 @@
+conda create -n mtrn4110 python=3.7 *
+conda activate mtrn4110
+conda deactivate
+cd .../MTRN4110_20T2_Python_Tutorials
+pip install -r requirements.txt *
+python -m ipykernel install --user --name=mtrn4110 *
+jupyter notebook #close on cmd with ctrl+c 3 times
+
+#*setup for laptop
